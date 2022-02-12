@@ -8,6 +8,7 @@ extern "C"{
     int get_balance(const char*);
     char* get_address(const char*);
     char* init_signer(const char*, const char*);
+    void save_score(const char*, int);
 
 #ifdef __cplusplus
 }
