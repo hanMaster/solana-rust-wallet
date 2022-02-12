@@ -48,17 +48,13 @@ pub extern "C" fn get_balance(signer_str: *const c_char) -> u64 {
 
 #[no_mangle]
 pub extern "C" fn save_score(signer_str: *const c_char, score: u64) {
-    println!("Score to save: {}", score);
-
     let keypair_str = c_to_str(signer_str);
-
     let payer = &Keypair::from_base58_string(keypair_str);
     let my_client = RpcClient::new(URL.to_string());
     let program_id = Pubkey::from_str(PROGRAM_ID).unwrap();
     let account_id = Pubkey::from_str(ACCOUNT_ID).unwrap();
 
     let instr = &score.to_le_bytes() as &[u8];
-    println!("instr: {:?}", instr);
 
     let instruction = Instruction::new_with_bytes(
         program_id,
@@ -66,7 +62,9 @@ pub extern "C" fn save_score(signer_str: *const c_char, score: u64) {
         vec![AccountMeta::new(account_id, false)],
     );
 
-    let blockhash = my_client.get_latest_blockhash().expect("Unable to get latest blockhash");
+    let blockhash = my_client.get_latest_blockhash()
+        .expect("Unable to get latest blockhash");
+
     let message = Message::new(
         &[instruction],
         Some(&payer.pubkey()),
