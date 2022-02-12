@@ -9,6 +9,7 @@ extern "C"{
     char* get_address(const char*);
     char* init_signer(const char*, const char*);
     void save_score(const char*, int);
+    int get_score();
 
 #ifdef __cplusplus
 }

@@ -6,6 +6,7 @@ use std::str::FromStr;
 use solana_sdk::signer::{keypair, Signer};
 use solana_client;
 use solana_client::rpc_client::RpcClient;
+use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::instruction::{AccountMeta, Instruction};
 use solana_sdk::message::Message;
 use solana_sdk::pubkey::Pubkey;
@@ -85,6 +86,23 @@ pub extern "C" fn save_score(signer_str: *const c_char, score: u64) {
     println!("Transaction sent with hash: {}", signature);
 }
 
+#[no_mangle]
+pub extern "C" fn get_score() -> u64 {
+    let account_id = Pubkey::from_str(ACCOUNT_ID).unwrap();
+    let commitment_config = CommitmentConfig::processed();
+    let my_client = RpcClient::new(URL.to_string());
+    let account = my_client.get_account_with_commitment(
+        &account_id,
+        commitment_config,
+    ).expect("Failed to get account info");
+
+    account.value.unwrap().data
+        .get(..8)
+        .and_then(|slice| slice.try_into().ok())
+        .map(u64::from_le_bytes)
+        .ok_or(()).unwrap()
+}
+
 fn c_to_str(c_pointer: *const c_char) -> &'static str {
     let c_str = unsafe { CStr::from_ptr(c_pointer) };
     let str = c_str.to_str().unwrap();
@@ -98,7 +116,6 @@ fn string_to_c_char(str: String) -> *mut c_char {
 
 #[cfg(test)]
 mod tests {
-    use solana_sdk::commitment_config::CommitmentConfig;
     use super::*;
 
     // #[test]
@@ -120,23 +137,7 @@ mod tests {
     // }
 
     #[test]
-    fn get_score() {
-        let account_id = Pubkey::from_str(ACCOUNT_ID).unwrap();
-        let commitment_config = CommitmentConfig::processed();
-        let my_client = RpcClient::new(URL.to_string());
-        let account = my_client.get_account_with_commitment(
-            &account_id,
-            commitment_config,
-        ).expect("Failed to get account info");
-
-        let data = account.value.unwrap().data;
-        println!("Account data: {:?}", &data);
-
-        let score = data
-            .get(..8)
-            .and_then(|slice| slice.try_into().ok())
-            .map(u64::from_le_bytes)
-            .ok_or(()).unwrap();
-        println!("Data: {}", score);
+    fn get_score_test() {
+        println!("Score: {}", get_score());
     }
 }
