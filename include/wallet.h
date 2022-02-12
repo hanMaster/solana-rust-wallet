@@ -6,7 +6,7 @@ extern "C"{
 #endif
 
     int get_balance(const char*);
-    char* get_string();
+    char* get_address(const char*);
     char* init_signer(const char*, const char*);
 
 #ifdef __cplusplus

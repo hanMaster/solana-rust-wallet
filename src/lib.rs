@@ -19,8 +19,10 @@ pub extern "C" fn init_signer(seed_phrase: *const c_char, passphrase: *const c_c
 }
 
 #[no_mangle]
-pub extern "C" fn get_string() -> *mut c_char {
-    string_to_c_char(String::from("Test string mother fucker"))
+pub extern "C" fn get_address(signer_str: *const c_char) -> *mut c_char {
+    let keypair_str = c_to_str(signer_str);
+    let signer = Keypair::from_base58_string(keypair_str);
+    string_to_c_char(signer.pubkey().to_string())
 }
 
 #[no_mangle]
@@ -71,6 +73,3 @@ mod tests {
     //     println!("Balance: {}", balance);
     // }
 }
-
-//  [217, 103, 211, 64, 254, 238, 114, 106, 77, 113, 212, 160, 59, 28, 89, 101, 132, 93, 252, 122, 81, 135, 50, 189, 157, 147, 77, 172, 183, 220, 22, 2]
-//  [217, 103, 211, 64, 254, 238, 114, 106, 77, 113, 212, 160, 59, 28, 89, 101, 132, 93, 252, 122, 81, 135, 50, 189, 157, 147, 77, 172, 183, 220, 22, 2, 84, 138, 209, 19, 255, 9, 228, 2, 220, 118, 199, 84, 131, 37, 183, 136, 141, 152, 92, 17, 211, 57, 217, 211, 49, 201, 4, 144, 99, 54, 141, 104]

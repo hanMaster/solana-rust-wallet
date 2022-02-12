@@ -10,11 +10,10 @@ int main()
 
     const char* signer = init_signer(seed_phrase, passphrase);
     int balance = get_balance(signer);
-
-//    const char* signer = "test";
-//    int balance = 5;
+    const char* address = get_address(signer);
 
     cout << "Signer: " << signer << endl;
+    cout << "Address: " << address << endl;
     cout << "Balance: " << balance << endl;
 
     return 0;
