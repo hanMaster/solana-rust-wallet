@@ -41,11 +41,9 @@ pub extern "C" fn get_balance(signer_str: *const c_char) -> u64 {
     let my_client = RpcClient::new(URL.to_string());
 
     println!("getting balance for {}", signer.pubkey());
-    let balance = my_client
+    my_client
         .get_balance(&signer.pubkey())
-        .expect("Unable to get balance");
-
-    return balance;
+        .expect("Unable to get balance")
 }
 
 #[no_mangle]
@@ -83,7 +81,7 @@ pub extern "C" fn save_score(signer_str: *const c_char, score: u64) {
             Signature::default()
         });
 
-    println!("Transaction sent with hash: {}", signature);
+    println!("Tx sent with hash: {}", signature);
 }
 
 #[no_mangle]
