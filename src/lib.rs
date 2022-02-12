@@ -48,6 +48,7 @@ pub extern "C" fn get_balance(signer_str: *const c_char) -> u64 {
 
 #[no_mangle]
 pub extern "C" fn save_score(signer_str: *const c_char, score: u64) {
+    println!("Start to save score: {}", score);
     let keypair_str = c_to_str(signer_str);
     let payer = &Keypair::from_base58_string(keypair_str);
     let my_client = RpcClient::new(URL.to_string());
