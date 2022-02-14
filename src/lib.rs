@@ -13,6 +13,7 @@ use solana_sdk::{
     signature::{Keypair, Signature},
     transaction::Transaction
 };
+use solana_sdk::pubkey::ParsePubkeyError;
 use spl_token;
 
 // const URL: &str = "https://api.devnet.solana.com";
@@ -59,15 +60,16 @@ pub extern "C" fn get_token_balance(signer_str: *const c_char) -> f64 {
     let owner = Keypair::from_base58_string(keypair_str);
     let my_client = RpcClient::new(URL.to_string());
 
-    let token_account = get_token_account(owner.pubkey());
+    if let Ok(token_account) = get_token_account(owner.pubkey()) {
+        let token_amount = my_client
+            .get_token_account_balance(&token_account)
+            .expect("Failed to get account info");
 
-    let token_amount = my_client
-        .get_token_account_balance(&token_account)
-        .expect("Failed to get account info");
-
-    let balance = token_amount.ui_amount.expect("Failed to get token balance");
-    println!("Token balance: {}", balance);
-    balance
+        let balance = token_amount.ui_amount.expect("Failed to get token balance");
+        println!("Token balance: {}", balance);
+        return balance;
+    };
+    0.0
 }
 
 #[no_mangle]
@@ -86,6 +88,8 @@ pub extern "C" fn buy_token(signer_str: *const c_char, amount: f64) {
     let instruction = [command,instr].concat();
     let (pda, _bump_seed) = Pubkey::find_program_address(&[b"flightace"], &program_id);
     let token_program_id= spl_token::ID;
+    let gamer_token_account = get_token_account(payer.pubkey())
+        .expect("Failed to get token account");
 
     let instruction = Instruction::new_with_bytes(
         program_id,
@@ -93,7 +97,7 @@ pub extern "C" fn buy_token(signer_str: *const c_char, amount: f64) {
         vec![
             AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new(game_owner_token_account, false),
-            AccountMeta::new(get_token_account(payer.pubkey()), false),
+            AccountMeta::new(gamer_token_account, false),
             AccountMeta::new_readonly(token_program_id, false),
             AccountMeta::new_readonly(pda, false),
         ],
@@ -183,7 +187,7 @@ fn string_to_c_char(str: String) -> *mut c_char {
     CString::new(str.as_bytes()).unwrap().into_raw()
 }
 
-fn get_token_account(owner: Pubkey) -> Pubkey {
+fn get_token_account(owner: Pubkey) -> Result<Pubkey, ParsePubkeyError> {
     let my_client = RpcClient::new(URL.to_string());
 
     let filter = TokenAccountsFilter::Mint(Pubkey::from_str(MINT).unwrap());
@@ -191,7 +195,7 @@ fn get_token_account(owner: Pubkey) -> Pubkey {
         .get_token_accounts_by_owner(&owner, filter)
         .expect("Failed to get accounts by owner");
 
-    Pubkey::from_str(&accounts[0].pubkey).unwrap()
+    Pubkey::from_str(&accounts[0].pubkey)
 }
 
 
