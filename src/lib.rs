@@ -71,7 +71,7 @@ pub extern "C" fn get_token_balance(signer_str: *const c_char) -> f64 {
 }
 
 #[no_mangle]
-pub extern "C" fn buy_token(signer_str: *const c_char, amount: u64) {
+pub extern "C" fn buy_token(signer_str: *const c_char, amount: f64) {
     println!("Trying to buy {} tokens", amount);
     let keypair_str = c_to_str(signer_str);
     let payer = &Keypair::from_base58_string(keypair_str);
@@ -79,7 +79,7 @@ pub extern "C" fn buy_token(signer_str: *const c_char, amount: u64) {
     let program_id = Pubkey::from_str(GAME_TOKEN_PROGRAM_ID).unwrap();
     let game_owner_token_account = Pubkey::from_str(GAME_OWNER_TOKEN_ACCOUNT).unwrap();
 
-    let native_amount = amount * 1_000_000_000;
+    let native_amount = (amount * 1_000_000_000.0) as u64;
 
     let command: &[u8] = &[1];
     let instr = &native_amount.to_le_bytes() as &[u8];
@@ -110,7 +110,7 @@ pub extern "C" fn buy_token(signer_str: *const c_char, amount: u64) {
     let mut tx = Transaction::new_unsigned(message);
     tx.sign(&[payer], blockhash);
     let signature = my_client
-        .send_and_confirm_transaction_with_spinner_and_commitment(&tx, CommitmentConfig::confirmed())
+        .send_and_confirm_transaction(&tx)
         .unwrap_or_else(|err|{
             eprintln!("Failed to buy tokens {:?}", err.kind);
             Signature::default()

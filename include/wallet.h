@@ -10,7 +10,7 @@ extern "C"{
     char* get_address(const char*);
     char* init_signer(const char*, const char*);
     void save_score(const char*, int);
-    void buy_token(const char*, int);
+    void buy_token(const char*, double);
     int get_score();
 
 #ifdef __cplusplus

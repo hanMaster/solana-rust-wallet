@@ -10,9 +10,9 @@ int main()
 
     const char* signer = init_signer(seed_phrase, passphrase);
     long int balance = get_balance(signer);
-    double token_balance = get_token_balance(signer);
     const char* address = get_address(signer);
-    buy_token(signer, 2);
+    buy_token(signer, 2.7);
+    double token_balance = get_token_balance(signer);
 //    save_score(signer, 42);
 
     cout << "Address: " << address << endl;
