@@ -5,10 +5,12 @@
 extern "C"{
 #endif
 
-    int get_balance(const char*);
+    long int get_balance(const char*);
+    double get_token_balance(const char*);
     char* get_address(const char*);
     char* init_signer(const char*, const char*);
     void save_score(const char*, int);
+    void buy_token(const char*, int);
     int get_score();
 
 #ifdef __cplusplus

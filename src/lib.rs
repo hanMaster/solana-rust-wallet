@@ -3,19 +3,26 @@ extern crate libc;
 use libc::c_char;
 use std::ffi::{CStr, CString};
 use std::str::FromStr;
-use solana_sdk::signer::{keypair, Signer};
-use solana_client;
-use solana_client::rpc_client::RpcClient;
-use solana_sdk::commitment_config::CommitmentConfig;
-use solana_sdk::instruction::{AccountMeta, Instruction};
-use solana_sdk::message::Message;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::{Keypair, Signature};
-use solana_sdk::transaction::Transaction;
+use solana_client::{ self, rpc_client::RpcClient, rpc_request::TokenAccountsFilter};
+use solana_sdk::{
+    commitment_config::CommitmentConfig,
+    instruction::{AccountMeta, Instruction},
+    message::Message,
+    pubkey::Pubkey,
+    signer::{keypair, Signer},
+    signature::{Keypair, Signature},
+    transaction::Transaction
+};
+use spl_token;
 
-const URL: &str = "https://api.devnet.solana.com";
-const PROGRAM_ID: &str = "8DYJ4XBH9Zrg9hEdE7wZeQKH4bGEGhPgNp5WpgQN5x82";
-const ACCOUNT_ID: &str = "9ZJd6BhBrUetpM2r9MbxQzoiWN7dTzU3fauEZftGyH9v";
+// const URL: &str = "https://api.devnet.solana.com";
+const URL: &str = "http://localhost:8899";
+const SCORE_PROGRAM_ID: &str = "5keeyTrvUnZD2ZCxViAhfbFfZwNFuaCKtgKydoTosAdc";
+const SCORE_ACCOUNT_ID: &str = "Ew8WXnbQkQnVyaJrNgcPeHH6FQx8b1UTwSH7uNkvAJQf";
+
+const GAME_TOKEN_PROGRAM_ID: &str = "Cf2FH5TEV6T511C4nJDyuyuaVc34vDA66rmmkwquyWeM";
+const GAME_OWNER_TOKEN_ACCOUNT: &str = "G6GTsFAnYP1PaNc1g36SF4iuEiosfTZZCWWdnCNxxA8d";
+const MINT: &str = "CZyEKArwVYSKkv9im3grGNXmggbPfS8YGUovBnzoKQ4s";
 
 #[no_mangle]
 pub extern "C" fn init_signer(seed_phrase: *const c_char, passphrase: *const c_char) -> *mut c_char {
@@ -47,13 +54,76 @@ pub extern "C" fn get_balance(signer_str: *const c_char) -> u64 {
 }
 
 #[no_mangle]
+pub extern "C" fn get_token_balance(signer_str: *const c_char) -> f64 {
+    let keypair_str = c_to_str(signer_str);
+    let owner = Keypair::from_base58_string(keypair_str);
+    let my_client = RpcClient::new(URL.to_string());
+
+    let token_account = get_token_account(owner.pubkey());
+
+    let token_amount = my_client
+        .get_token_account_balance(&token_account)
+        .expect("Failed to get account info");
+
+    let balance = token_amount.ui_amount.expect("Failed to get token balance");
+    println!("Token balance: {}", balance);
+    balance
+}
+
+#[no_mangle]
+pub extern "C" fn buy_token(signer_str: *const c_char, amount: u64) {
+    println!("Trying to buy {} tokens", amount);
+    let keypair_str = c_to_str(signer_str);
+    let payer = &Keypair::from_base58_string(keypair_str);
+    let my_client = RpcClient::new(URL.to_string());
+    let program_id = Pubkey::from_str(GAME_TOKEN_PROGRAM_ID).unwrap();
+    let game_owner_token_account = Pubkey::from_str(GAME_OWNER_TOKEN_ACCOUNT).unwrap();
+
+
+    let instr = &amount.to_le_bytes() as &[u8];
+    let (pda, _bump_seed) = Pubkey::find_program_address(&[b"flightace"], &program_id);
+    let token_program_id= spl_token::ID;
+
+    let instruction = Instruction::new_with_bytes(
+        program_id,
+        &instr,
+        vec![
+            AccountMeta::new(payer.pubkey(), true),
+            AccountMeta::new(game_owner_token_account, false),
+            AccountMeta::new(get_token_account(payer.pubkey()), false),
+            AccountMeta::new_readonly(token_program_id, false),
+            AccountMeta::new_readonly(pda, false),
+        ],
+    );
+
+    let blockhash = my_client.get_latest_blockhash()
+        .expect("Unable to get latest blockhash");
+
+    let message = Message::new(
+        &[instruction],
+        Some(&payer.pubkey()),
+    );
+
+    let mut tx = Transaction::new_unsigned(message);
+    tx.sign(&[payer], blockhash);
+    let signature = my_client
+        .send_and_confirm_transaction_with_spinner_and_commitment(&tx, CommitmentConfig::confirmed())
+        .unwrap_or_else(|err|{
+            eprintln!("Failed to buy tokens {:?}", err.kind);
+            Signature::default()
+        });
+
+    println!("Tx sent with hash: {}", signature);
+}
+
+#[no_mangle]
 pub extern "C" fn save_score(signer_str: *const c_char, score: u64) {
     println!("Start to save score: {}", score);
     let keypair_str = c_to_str(signer_str);
     let payer = &Keypair::from_base58_string(keypair_str);
     let my_client = RpcClient::new(URL.to_string());
-    let program_id = Pubkey::from_str(PROGRAM_ID).unwrap();
-    let account_id = Pubkey::from_str(ACCOUNT_ID).unwrap();
+    let program_id = Pubkey::from_str(SCORE_PROGRAM_ID).unwrap();
+    let account_id = Pubkey::from_str(SCORE_ACCOUNT_ID).unwrap();
 
     let instr = &score.to_le_bytes() as &[u8];
 
@@ -74,7 +144,7 @@ pub extern "C" fn save_score(signer_str: *const c_char, score: u64) {
     let mut tx = Transaction::new_unsigned(message);
     tx.sign(&[payer], blockhash);
     let signature = my_client
-        .send_and_confirm_transaction(&tx)
+        .send_and_confirm_transaction_with_spinner_and_commitment(&tx, CommitmentConfig::confirmed())
         .unwrap_or_else(|err|{
             eprintln!("Failed to save score {:?}", err.kind);
             Signature::default()
@@ -85,7 +155,7 @@ pub extern "C" fn save_score(signer_str: *const c_char, score: u64) {
 
 #[no_mangle]
 pub extern "C" fn get_score() -> u64 {
-    let account_id = Pubkey::from_str(ACCOUNT_ID).unwrap();
+    let account_id = Pubkey::from_str(SCORE_ACCOUNT_ID).unwrap();
     let commitment_config = CommitmentConfig::processed();
     let my_client = RpcClient::new(URL.to_string());
     let account = my_client.get_account_with_commitment(
@@ -110,31 +180,59 @@ fn string_to_c_char(str: String) -> *mut c_char {
     CString::new(str.as_bytes()).unwrap().into_raw()
 }
 
+fn get_token_account(owner: Pubkey) -> Pubkey {
+    let my_client = RpcClient::new(URL.to_string());
+
+    let filter = TokenAccountsFilter::Mint(Pubkey::from_str(MINT).unwrap());
+    let accounts = my_client
+        .get_token_accounts_by_owner(&owner, filter)
+        .expect("Failed to get accounts by owner");
+
+    Pubkey::from_str(&accounts[0].pubkey).unwrap()
+}
+
 
 #[cfg(test)]
 mod tests {
+    use solana_client::rpc_request::TokenAccountsFilter;
     use super::*;
 
-    // #[test]
-    // fn get_signer() {
-    //     let seed_phrase = string_to_c_char(String::from("pitch trust globe fish fever anchor type used aunt enemy crop spatial"));
-    //     let passphrase = string_to_c_char(String::from("localhost"));
-    //     let signer = init_signer(seed_phrase, passphrase);
-    //     // assert_eq!(signer.pubkey().to_string(), "6h21yZr5Ezvv764EzhpdqMAkVxmj99JEGX5Tvrr8AyBD");
-    //     println!("Keypair: {:?}", &signer.unwrap().to_base58_string());
-    // }
-
-    // #[test]
-    // fn get_balance_test() {
-    //     let signer = init_signer(
-    //         CString::new("pitch trust globe fish fever anchor type used aunt enemy crop spatial").unwrap(),
-    //         CString::new("localhost").unwrap());
-    //     let balance = get_balance(&signer);
-    //     println!("Balance: {}", balance);
-    // }
+    #[test]
+    #[ignore]
+    fn get_balance_test() {
+        let my_client = RpcClient::new(URL.to_string());
+        let pubkey = Pubkey::from_str("6h21yZr5Ezvv764EzhpdqMAkVxmj99JEGX5Tvrr8AyBD").unwrap();
+        println!("getting balance for {}", pubkey.to_string());
+        let balance = my_client
+            .get_balance(&pubkey)
+            .expect("Unable to get balance");
+        println!("Balance: {}", balance);
+    }
 
     #[test]
+    #[ignore]
+    fn get_token_balance_test() {
+        let my_client = RpcClient::new(URL.to_string());
+        let owner = Pubkey::from_str("6h21yZr5Ezvv764EzhpdqMAkVxmj99JEGX5Tvrr8AyBD").unwrap();
+
+        let filter = TokenAccountsFilter::Mint(Pubkey::from_str(MINT).unwrap());
+
+        let accounts = my_client.get_token_accounts_by_owner(&owner, filter).unwrap();
+
+        let token_account = Pubkey::from_str(&accounts[0].pubkey).unwrap();
+
+        let token_amount = my_client.get_token_account_balance(&token_account).expect("Failed to get account info");
+        println!("Token balance: {}", token_amount.ui_amount.unwrap());
+    }
+
+    #[test]
+    #[ignore]
     fn get_score_test() {
         println!("Score: {}", get_score());
+    }
+
+    #[test]
+    fn buy_token_test() {
+
     }
 }

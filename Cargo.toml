@@ -10,4 +10,5 @@ crate-type = ["dylib"]
 [dependencies]
 solana-client = "1.9.6"
 libc = "0.2.117"
-solana-sdk = "1.9.5"
+solana-sdk = "1.9.6"
+spl-token = {version = "3.2.0", features = ["no-entrypoint"]}

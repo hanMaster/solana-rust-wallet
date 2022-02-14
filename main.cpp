@@ -9,13 +9,15 @@ int main()
     const char *passphrase = "localhost";
 
     const char* signer = init_signer(seed_phrase, passphrase);
-//    int balance = get_balance(signer);
-//    const char* address = get_address(signer);
-    save_score(signer, 560025);
+    long int balance = get_balance(signer);
+    double token_balance = get_token_balance(signer);
+    const char* address = get_address(signer);
+    buy_token(signer, 2);
+//    save_score(signer, 42);
 
-//    cout << "Signer: " << signer << endl;
-//    cout << "Address: " << address << endl;
-//    cout << "Balance: " << balance << endl;
+    cout << "Address: " << address << endl;
+    cout << "Balance: " << balance << endl;
+    cout << "Token balance: " << token_balance << endl;
 
     return 0;
 }
