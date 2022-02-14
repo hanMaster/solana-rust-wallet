@@ -79,14 +79,17 @@ pub extern "C" fn buy_token(signer_str: *const c_char, amount: u64) {
     let program_id = Pubkey::from_str(GAME_TOKEN_PROGRAM_ID).unwrap();
     let game_owner_token_account = Pubkey::from_str(GAME_OWNER_TOKEN_ACCOUNT).unwrap();
 
+    let native_amount = amount * 1_000_000_000;
 
-    let instr = &amount.to_le_bytes() as &[u8];
+    let command: &[u8] = &[1];
+    let instr = &native_amount.to_le_bytes() as &[u8];
+    let instruction = [command,instr].concat();
     let (pda, _bump_seed) = Pubkey::find_program_address(&[b"flightace"], &program_id);
     let token_program_id= spl_token::ID;
 
     let instruction = Instruction::new_with_bytes(
         program_id,
-        &instr,
+        &instruction,
         vec![
             AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new(game_owner_token_account, false),
@@ -210,7 +213,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn get_token_balance_test() {
         let my_client = RpcClient::new(URL.to_string());
         let owner = Pubkey::from_str("6h21yZr5Ezvv764EzhpdqMAkVxmj99JEGX5Tvrr8AyBD").unwrap();
@@ -232,6 +234,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn buy_token_test() {
 
     }
